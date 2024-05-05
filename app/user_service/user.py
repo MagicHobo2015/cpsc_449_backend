@@ -13,11 +13,16 @@ def _load_env_variables():
         # exit, let system know there was an error.
         exit(1)
 
-def _init_flask_app():
+def _init_user_service():
     # create the app.
     app = Flask(__name__)
-    # Setup Config.
+
+    # load these vars.
+    _load_env_variables()
+
+    # Config. app
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['SQLALCHEMY_DATABASE_URI']
 
+
 if __name__ == '__main__':
-    _init_flask_app()
+    _init_user_service()
