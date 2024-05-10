@@ -4,6 +4,7 @@
 #			Author: Group 2												   #
 #																			   #
 #------------------------------------------------------------------------------#
+from ast import arg
 from flask import jsonify
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
@@ -34,8 +35,9 @@ class User(db.Model):
 	date_created = mapped_column(DATETIME, default=datetime.utcnow)
 
 	def __init__( self, arg_dic ):
-		self.email_address = arg_dic['email_address']
+		self.email_address = arg_dic['email']
 		self.user_name = arg_dic['username']
+		self.password = arg_dic['password']
 		self.first_name = arg_dic['first_name']
 		self.last_name = arg_dic['last_name']
 		# Managed by class

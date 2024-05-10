@@ -27,7 +27,7 @@ def create_user():
             # make sure everything is here.
 
             # start with a list of all thats required
-            required_params = [ 'email_address', 'username' ]
+            required_params = [ 'email', 'username', 'first_name', 'last_name' ]
 
             # Look through params and make a dictionary if all is well.
             user_params = {}
@@ -38,7 +38,7 @@ def create_user():
                 # gather everything.
                 user_params = {param : request.form[param] for param in required_params}
                 user_params['password'] = hashed_password
-                print(user_params)
+                print(user_params['password'])
 
                 # Now check that email and username are unique.
                 email = User.query.get('email')
@@ -47,7 +47,7 @@ def create_user():
                     return jsonify(error='Account Already exists..'), 400
 
                 # Create the user.
-                new_user = User(**user_params)
+                new_user = User(user_params)
                 db.session.add(new_user)
                 db.session.commit()
                 db.session.refresh(new_user)
@@ -65,14 +65,14 @@ def create_user():
 def get_user(user_id):
       user = User.query.get(user_id)
       if user is not None:
-            return jsonify(user.to_json()), 200
+            return user.to_json(), 200
       else:
            return jsonify(error="User Not Found"), 403
 
 # Update - User
 @app.route('/user/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
-     required_params = ['first_name', 'last_name', 'email', 'user_name']
+     required_params = ['first_name', 'last_name', 'user_name']
      if all(param in request.json for param in required_params):
           # grab the user.
           user = User.query.get(user_id)
@@ -81,8 +81,6 @@ def update_user(user_id):
           
           user.first_name = request.json.get('first_name')
           user.last_name = request.json.get('last_name')
-          user.email = request.json.get('email')
-          user.user_name = request.json.get('user_name')
 
           db.session.commit()
           return user.to_json(), 201 # success
