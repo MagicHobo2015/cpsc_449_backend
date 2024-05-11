@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from sqlalchemy import select
 from dotenv import dotenv_values
 from werkzeug.security import generate_password_hash
 from models import db, User
@@ -8,15 +9,15 @@ from models import db, User
 private_stuff = dotenv_values('.env')
 # create the app.
 app = Flask(__name__)
-# Config. app
+# Config. 
 app.config['SQLALCHEMY_DATABASE_URI'] = private_stuff['SQLALCHEMY_DATABASE_URI']
+app.config['SECRET_KEY'] = private_stuff['SECRET_KEY']  # Same secret key as in the authentication service
+# Initialize the database with the app.
 db.init_app(app)
+
+# Create the tables if they dont exist already.
 with app.app_context(): 
      db.create_all()
-
-# # This will make the tabels if they dont exist.
-# with app.app_context():
-#         db.create_all()
 
 # Create - User
 # This wants form data, not json.
@@ -25,7 +26,6 @@ def create_user():
       # Seems redundant, cant even get here if it isnt a post request.
       if request.method == "POST":
             # make sure everything is here.
-
             # start with a list of all thats required
             required_params = [ 'email', 'username', 'first_name', 'last_name' ]
 
@@ -41,8 +41,11 @@ def create_user():
                 print(user_params['password'])
 
                 # Now check that email and username are unique.
-                email = User.query.get('email')
-                username = User.query.get('user_name')
+                # email = User.query.get('email')
+                # username = User.query.get('user_name')
+                email = db.session.execute(select(User.email_address).where(User.email_address == user_params['email']))
+                username = db.session.execute(select(User.user_name).where(User.user_name == user_params['username']))
+ 
                 if (email is not None) or (username is not None):
                     return jsonify(error='Account Already exists..'), 400
 
@@ -57,17 +60,15 @@ def create_user():
                 return response_data, 201
             else:
                   return jsonify(error='Missing Required Fields'), 400
-      else: 
+      else:
            return jsonify(error='Bad Request'), 400
     
 # Read - User
 @app.route('/user/<int:user_id>', methods=['GET'])
 def get_user(user_id):
-      user = User.query.get(user_id)
-      if user is not None:
-            return user.to_json(), 200
-      else:
-           return jsonify(error="User Not Found"), 403
+    # Grabs the user from the db, if not returns 404.
+     user = db.get_or_404(User, user_id)
+     return user.to_json()
 
 # Update - User
 @app.route('/user/<int:user_id>', methods=['PUT'])
@@ -75,25 +76,29 @@ def update_user(user_id):
      required_params = ['first_name', 'last_name', 'user_name']
      if all(param in request.json for param in required_params):
           # grab the user.
-          user = User.query.get(user_id)
-          if user is None:
-               return jsonify(error="User, does not exist"), 403
-          
+          user = get_user(user_id)
+
           user.first_name = request.json.get('first_name')
           user.last_name = request.json.get('last_name')
 
           db.session.commit()
           return user.to_json(), 201 # success
-
      else:
           return jsonify(error="Missing a parameter!"), 400
+
+
+@app.route('/protected')
+@jwt_required()
+def protected():
+    return jsonify(logged_in_as=current_identity.username), 200
+
+
 
 # Delete - User
 @app.route('/user/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
      # get the user
-     user = User.query.get(user_id)
-
+     user = db.session.get(user_id)
      if user is None:
           return jsonify(error='Bad User ID'), 400
 
