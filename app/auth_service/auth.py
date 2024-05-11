@@ -20,6 +20,27 @@ with app.app_context():
      db.create_all()
 
 
+#to login user already present and generate token
+@app.route('/login', methods=['POST'])
+def login():
+    data=request.get_json()
+    email=data.get("email")
+    password=data.get("password")
+    # Check if the email exists in the database
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"message": "Email not found"}), 404
+    
+    # Check if the password is correct
+    if user.password != password:
+        return jsonify({"message": "Incorrect password"}), 401
+    
+    # Generate a token based on the email and whether the user is an admin
+    token = generateToken(email, user.is_admin)
+    
+    return jsonify({"message": "Login successful", "token": token}), 200
+
+
 #to store user credentials and appropriate permission level
 @app.route('/create', methods=['POST'])
 def create_user():
