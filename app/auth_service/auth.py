@@ -27,7 +27,10 @@ def create_user():
     email=data.get("email")
     password=data.get("password")
     is_admin=data.get("is_admin")
-    if(email and password): 
+    #added source so that only credentials passed by user_service micro-service 
+    #are provided a token
+    source=data.get("source")
+    if(email and password and source=="user_service"): 
          #provide data as a dictionary
          new_user = User(arg_dic={'email': email,'password': password,'is_admin': is_admin})
          db.session.add(new_user)
@@ -35,7 +38,7 @@ def create_user():
 
          token=generateToken(email, is_admin)
          
-         return jsonify({"message": "User created successfully"}, token), 201
+         return jsonify({"message": "User created successfully", "token": token}), 201
     else:
          return jsonify({"message": "Invalid request parameters"}), 400
 
