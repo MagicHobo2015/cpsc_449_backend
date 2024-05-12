@@ -10,20 +10,11 @@ from models import db, User
 
 # grab .env vars
 private_stuff = dotenv_values('.env')
+
 # create the app.
 app = Flask(__name__)
 for key in private_stuff:
     app.config[key] = private_stuff[key]
-
-# # Config.
-# app.config['SQLALCHEMY_DATABASE_URI'] = private_stuff['SQLALCHEMY_DATABASE_URI']
-# app.config['SECRET_KEY'] = private_stuff['SECRET_KEY']  # Same secret key as in the authentication service
-# app.config['JWT_TOKEN_LOCATION'] = private_stuff['JWT_TOKEN_LOCATION']
-# app.config['JWT_HEADER_NAME'] = private_stuff['JWT_HEADER_NAME']
-# app.config['JWT_HEADER_TYPE'] = private_stuff['JWT_HEADER_TYPE']
-# app.config['JWT_ALGORITHM'] = private_stuff['JWT_ALGORITHM']
-
-
 
 # Initialize the database with the app.
 db.init_app(app)
@@ -75,13 +66,10 @@ def create_user():
                 else:
                     # if youre here it means someone already has that username or email.
                     return jsonify(error='Account Already exists..'), 400
-
-                token = _get_token(user_params)[1]
-                print(token)
-                print(type(token))
-                new_user = new_user.serialize()
+                # here we created the user, need to get token
+                token = _get_token(user_params)[1]                
                 #Prepare response
-                response_data = { 'user' : new_user, 'token' : token}
+                response_data = { 'user' : new_user.serialize(), 'token' : token}
                 return jsonify(response_data), 201
             else:
                   return jsonify(error='Missing Required Fields'), 400
