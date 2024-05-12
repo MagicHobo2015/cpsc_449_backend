@@ -1,6 +1,9 @@
+from urllib import response
 from flask import Flask, jsonify, request
-from sqlalchemy import select
+import requests
+from sqlalchemy import insert, select
 from dotenv import dotenv_values
+from flask_jwt_extended import get_jwt_identity, jwt_required, JWTManager
 from werkzeug.security import generate_password_hash
 from models import db, User
 
@@ -9,15 +12,34 @@ from models import db, User
 private_stuff = dotenv_values('.env')
 # create the app.
 app = Flask(__name__)
-# Config. 
-app.config['SQLALCHEMY_DATABASE_URI'] = private_stuff['SQLALCHEMY_DATABASE_URI']
-app.config['SECRET_KEY'] = private_stuff['SECRET_KEY']  # Same secret key as in the authentication service
+for key in private_stuff:
+    app.config[key] = private_stuff[key]
+
+# # Config.
+# app.config['SQLALCHEMY_DATABASE_URI'] = private_stuff['SQLALCHEMY_DATABASE_URI']
+# app.config['SECRET_KEY'] = private_stuff['SECRET_KEY']  # Same secret key as in the authentication service
+# app.config['JWT_TOKEN_LOCATION'] = private_stuff['JWT_TOKEN_LOCATION']
+# app.config['JWT_HEADER_NAME'] = private_stuff['JWT_HEADER_NAME']
+# app.config['JWT_HEADER_TYPE'] = private_stuff['JWT_HEADER_TYPE']
+# app.config['JWT_ALGORITHM'] = private_stuff['JWT_ALGORITHM']
+
+
+
 # Initialize the database with the app.
 db.init_app(app)
+jwt = JWTManager(app)
 
 # Create the tables if they dont exist already.
-with app.app_context(): 
+with app.app_context():
      db.create_all()
+
+def _get_token(params):
+    # create request
+    url = 'http://127.0.0.1:5000/create'
+    myobj = {'email' : params['email'], 'password' : params['password'], 'is_admin' : params['is_admin']}
+    _re = requests.post(url, json = myobj)
+    return _re.json()
+
 
 # Create - User
 # This wants form data, not json.
@@ -37,74 +59,82 @@ def create_user():
                     hashed_password = generate_password_hash(request.form['password'])
                 # gather everything.
                 user_params = {param : request.form[param] for param in required_params}
+                user_params['is_admin'] = True
                 user_params['password'] = hashed_password
-                print(user_params['password'])
-
                 # Now check that email and username are unique.
-                # email = User.query.get('email')
-                # username = User.query.get('user_name')
                 email = db.session.execute(select(User.email_address).where(User.email_address == user_params['email']))
                 username = db.session.execute(select(User.user_name).where(User.user_name == user_params['username']))
- 
-                if (email is not None) or (username is not None):
+
+                if (email is not email.mappings().all()) or (username is not username.mappings().all()):
+                    # this means both are unique so make the user. grab a token.
+                    new_user = User(user_params)
+                    # Create the user.
+                    db.session.add(new_user)
+                    db.session.commit()
+                    db.session.refresh(new_user)
+                else:
+                    # if youre here it means someone already has that username or email.
                     return jsonify(error='Account Already exists..'), 400
 
-                # Create the user.
-                new_user = User(user_params)
-                db.session.add(new_user)
-                db.session.commit()
-                db.session.refresh(new_user)
-
+                token = _get_token(user_params)[1]
+                print(token)
+                print(type(token))
+                new_user = new_user.serialize()
                 #Prepare response
-                response_data = new_user.to_json()
-                return response_data, 201
+                response_data = { 'user' : new_user, 'token' : token}
+                return jsonify(response_data), 201
             else:
                   return jsonify(error='Missing Required Fields'), 400
       else:
            return jsonify(error='Bad Request'), 400
-    
+
 # Read - User
+# opens token, gets reqested user if it exists, makes sure you can access this person. if all is well sends it back.
 @app.route('/user/<int:user_id>', methods=['GET'])
+@jwt_required()
 def get_user(user_id):
+    # get id from token
+    token_info = get_jwt_identity()
     # Grabs the user from the db, if not returns 404.
-     user = db.get_or_404(User, user_id)
-     return user.to_json()
+    user = db.get_or_404(User, user_id)
+    # little security, only want to return this to itself or an admin
+    if bool(token_info['is_admin']) or user.email_address == token_info['email']:
+         return user.to_json()
+    return jsonify(error="UnAuthorized, you can only look at your own stuff"), 401
 
 # Update - User
+# checks token, checks params, checks email matches or is_admin if its good updates the user.
 @app.route('/user/<int:user_id>', methods=['PUT'])
+@jwt_required()
 def update_user(user_id):
+     token_info = get_jwt_identity()
      required_params = ['first_name', 'last_name', 'user_name']
      if all(param in request.json for param in required_params):
-          # grab the user.
-          user = get_user(user_id)
-
-          user.first_name = request.json.get('first_name')
-          user.last_name = request.json.get('last_name')
-
-          db.session.commit()
-          return user.to_json(), 201 # success
-     else:
-          return jsonify(error="Missing a parameter!"), 400
-
-
-@app.route('/protected')
-@jwt_required()
-def protected():
-    return jsonify(logged_in_as=current_identity.username), 200
-
-
+        # grab the user.
+        user = get_user(user_id)
+        if bool(token_info['is_admin']) or token_info['email'] == user.email_address:       
+            user.first_name = request.json.get('first_name')
+            user.last_name = request.json.get('last_name')
+            db.session.commit()
+            return user.to_json(), 201 # success
+        else:
+            return jsonify(error="Missing a parameter!"), 400
 
 # Delete - User
 @app.route('/user/<int:user_id>', methods=['DELETE'])
+@jwt_required
 def delete_user(user_id):
-     # get the user
-     user = db.session.get(user_id)
-     if user is None:
-          return jsonify(error='Bad User ID'), 400
+     if bool(get_jwt_identity()['is_admin']):
+        # get the user
+        user = db.session.get(user_id)
+        if user is None:
+            return jsonify(error='Bad User ID'), 400
 
-     db.session.delete(user)
-     db.session.commit()
-     return jsonify({'result' : True}), 200
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'result' : True}), 200
+     else:
+         return jsonify(error='Its Unclear what happened'), 400
 
 # List of required error handlers
 
@@ -138,7 +168,6 @@ def internal_server_error(error):
     """Handle 500 Internal Server Error errors."""
     return jsonify(error=str(error)), 500
 
-
 if __name__ == '__main__':
     # run if called.
-    app.run(debug=True)
+    app.run(port=private_stuff['PORT'], debug=True)

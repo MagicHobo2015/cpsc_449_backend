@@ -10,7 +10,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash
 from sqlalchemy.orm import DeclarativeBase, mapped_column
-from sqlalchemy import Integer, String, DATETIME
+from sqlalchemy import Integer, String, DATETIME, true
 
 
 # All models inherit this.
@@ -32,6 +32,7 @@ class User(db.Model):
 	password = mapped_column(String(255), nullable=False)
 	first_name = mapped_column(String(100), nullable=True)
 	last_name = mapped_column(String(100), nullable=True)
+	token = mapped_column(String(255), nullable=True)
 	date_created = mapped_column(DATETIME, default=datetime.utcnow)
 
 	def __init__( self, arg_dic ):
@@ -53,12 +54,12 @@ class User(db.Model):
 		return check_password_hash(self.password, pword)
 
     # Package it up for shipping
-	def to_json(self):
-		return jsonify({
+	def serialize(self):
+		return {
 			'id' : self.id,
 			'username' : self.user_name,
 			'email' : self.email_address,
 			'first' : self.first_name,
 			'last' : self.last_name,
 			'created' : self.date_created,
-		})
+		}
