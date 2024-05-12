@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from models import db, User
 from flask_jwt_extended import create_access_token, JWTManager
 from datetime import datetime, timedelta
+from flask_redis import FlaskRedis
+
 
 
 # grab .env vars
@@ -14,6 +16,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = private_stuff['SECRET_KEY']
 app.config['SQLALCHEMY_DATABASE_URI'] = private_stuff['SQLALCHEMY_DATABASE_URI']
 app.config['JWT_ALGORITHM'] = private_stuff['JWT_ALGORITHM']
+app.config['REDIS_URL'] = private_stuff['REDIS_URL']
+
+redis_store = FlaskRedis(app)
+
 db.init_app(app)
 jwt=JWTManager(app)
 with app.app_context(): 
@@ -35,10 +41,18 @@ def login():
     if user.password != password:
         return jsonify({"message": "Incorrect password"}), 401
     
+    # Check if token is cached
+    cached_token = redis_store.get(email)
+    if cached_token:
+        return jsonify({"message": "Login successful", "token": cached_token.decode(), "from_cache": "True"}), 200
+    
+
     # Generate a token based on the email and whether the user is an admin
     token = generateToken(email, user.is_admin)
+    # Cache the token
+    redis_store.set(email, token, ex=3600)  # expire in 1 hour
     
-    return jsonify({"message": "Login successful", "token": token}), 200
+    return jsonify({"message": "Login successful", "token": token, "from_cache": "False"}), 200
 
 
 #to store user credentials and appropriate permission level
