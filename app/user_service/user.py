@@ -27,7 +27,7 @@ with app.app_context():
 def _get_token(params):
     # create request
     url = 'http://127.0.0.1:5000/create'
-    myobj = {'email' : params['email'], 'password' : params['password'], 'is_admin' : params['is_admin']}
+    myobj = {'email' : params['email'], 'password' : params['password'], 'is_admin' : params['is_admin'], 'source' : params['source']}
     _re = requests.post(url, json = myobj)
     return _re.json()
 
@@ -52,6 +52,7 @@ def create_user():
                 user_params = {param : request.form[param] for param in required_params}
                 user_params['is_admin'] = True
                 user_params['password'] = hashed_password
+                user_params['source'] = "user_service"
                 # Now check that email and username are unique.
                 email = db.session.execute(select(User.email_address).where(User.email_address == user_params['email']))
                 username = db.session.execute(select(User.user_name).where(User.user_name == user_params['username']))
@@ -67,9 +68,9 @@ def create_user():
                     # if youre here it means someone already has that username or email.
                     return jsonify(error='Account Already exists..'), 400
                 # here we created the user, need to get token
-                token = _get_token(user_params)[1]                
+                token = _get_token(user_params)                
                 #Prepare response
-                response_data = { 'user' : new_user.serialize(), 'token' : token}
+                response_data = { 'user' : new_user.serialize(), 'token' : token['token']}
                 return jsonify(response_data), 201
             else:
                   return jsonify(error='Missing Required Fields'), 400
