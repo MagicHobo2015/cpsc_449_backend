@@ -36,7 +36,7 @@ def login():
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({"message": "Email not found"}), 404
-    
+
     # Check if the password is correct
     if user.password != password:
         return jsonify({"message": "Incorrect password"}), 401
@@ -45,13 +45,13 @@ def login():
     cached_token = redis_store.get(email)
     if cached_token:
         return jsonify({"message": "Login successful", "token": cached_token.decode(), "from_cache": "True"}), 200
-    
+
 
     # Generate a token based on the email and whether the user is an admin
     token = generateToken(email, user.is_admin)
     # Cache the token
     redis_store.set(email, token, ex=3600)  # expire in 1 hour
-    
+
     return jsonify({"message": "Login successful", "token": token, "from_cache": "False"}), 200
 
 
@@ -72,12 +72,12 @@ def create_user():
          db.session.commit()
 
          token=generateToken(email, is_admin)
-         
+
          return jsonify({"message": "User created successfully", "token": token}), 201
     else:
          return jsonify({"message": "Invalid request parameters"}), 400
 
-     
+
 #generates token based on email, and permission (is_admin= True/False)
 def generateToken(email, is_admin):
     data = {
@@ -89,7 +89,6 @@ def generateToken(email, is_admin):
 
     return access_token
 
-    
 
 if __name__=='__main__':
     app.run(debug=True)

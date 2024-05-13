@@ -7,6 +7,7 @@
 from flask import Flask
 from datetime import datetime
 from dotenv import dotenv_values
+from flask_jwt_extended import JWTManager, jwt_required
 from blog_models import db, BlogPost
 from flask import request, jsonify, abort
 
@@ -18,6 +19,7 @@ private_stuff = dotenv_values('.env')
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = private_stuff["SQLALCHEMY_DATABASE_URI"]
 db.init_app(app)
+jwt = JWTManager(app)
 
 # This will only create the tables once.
 with app.app_context():
@@ -25,6 +27,7 @@ with app.app_context():
 
 # create - Blog Post, works.
 @app.route("/post", methods=["POST"])
+@jwt_required()
 def create_post():
 
     if request.method == "POST":
