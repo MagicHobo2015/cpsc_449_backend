@@ -27,7 +27,7 @@ with app.app_context():
 def _get_token(params):
     # create request
     url = 'http://127.0.0.1:5000/create'
-    myobj = {'email' : params['email'], 'password' : params['password'], 'is_admin' : params['is_admin'], 'source' : params['source']}
+    myobj = {'email' : params['email'], 'password' : params['password'], 'is_admin' : params['is_admin'], 'source' : 'user_service'}
     _re = requests.post(url, json = myobj)
     return _re.json()
 
