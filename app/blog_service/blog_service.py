@@ -1,15 +1,18 @@
 #------------------------------------------------------------------------------#
 #	Welcome to my blog api!													   #
 #		Discription: 	This is a simple flask CRUD api for a blog.            #
-#			Author: Joshua Land												   #
+#			Author: Joshua Land, Melvin Mathew, Parth Barot					   #
 #																			   #
 #------------------------------------------------------------------------------#
 from flask import Flask
 from datetime import datetime
 from dotenv import dotenv_values
-from flask_jwt_extended import JWTManager, jwt_required
 from blog_models import db, BlogPost
 from flask import request, jsonify, abort
+from flask_redis import FlaskRedis
+import json
+
+
 
 
 #	Create a dictionary from the .env stuff
@@ -17,9 +20,14 @@ private_stuff = dotenv_values('.env')
 
 # init Flask app
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = private_stuff["SQLALCHEMY_DATABASE_URI"]
+app.config['SQLALCHEMY_DATABASE_URI'] = private_stuff['SQLALCHEMY_DATABASE_URI']
+app.config['REDIS_URL'] = private_stuff['REDIS_URL']
+
+
+redis_store = FlaskRedis(app)
 db.init_app(app)
-jwt = JWTManager(app)
+
+
 
 # This will only create the tables once.
 with app.app_context():
@@ -27,7 +35,6 @@ with app.app_context():
 
 # create - Blog Post, works.
 @app.route("/post", methods=["POST"])
-@jwt_required()
 def create_post():
 
     if request.method == "POST":
@@ -46,11 +53,22 @@ def create_post():
             db.session.commit()
             db.session.refresh(new_post)
 
+            # Cache the new post
+            post_data = {
+                'id': new_post.id,
+                'title': new_post.title,
+                'content': new_post.content,
+                'author': new_post.author,
+                'date_posted': new_post.date_posted.strftime("%Y-%m-%d %H:%M:%S")  # Convert datetime to string
+            }
+            redis_store.set(f"post:{new_post.id}", json.dumps(post_data), ex=3600)  # Cache the new post, expire in 1 hour
+
+
             # Prepare response data
             response_data = {
                 'id': new_post.id,
                 'date_posted': new_post.date_posted,
-                **blog_content
+                # **blog_content
             }
             return jsonify(response_data), 201
         else:
@@ -61,10 +79,27 @@ def create_post():
 # Read - post 
 @app.route("/post/<int:post_id>", methods=["GET"])
 def get_post(post_id):
-      post = BlogPost.query.get(post_id)
-      if post is not None:
-            return jsonify(post.to_json()), 200
-      else:
+    # Check if the post is cached
+    cached_post = redis_store.get(f"post:{post_id}")
+    if cached_post:
+        # Deserialize the cached post from JSON string to a dictionary
+        cached_post_dict = json.loads(cached_post)
+        return jsonify({"message": "Response received from cache", "data": cached_post_dict}), 200
+    
+    # If not cached, query the database
+    post = BlogPost.query.get(post_id)
+    if post is not None:
+        # Convert datetime objects to strings
+        post_data = post.to_json()
+        post_data['date_posted'] = post_data['date_posted'].strftime("%Y-%m-%d %H:%M:%S")
+        post_data['last_edit'] = post_data['last_edit'].strftime("%Y-%m-%d %H:%M:%S")
+
+        # Serialize the post to a JSON string before caching it
+        post_json = json.dumps(post_data)
+        # Cache the post for future requests
+        redis_store.set(f"post:{post_id}", post_json, ex=3600)  # expire in 1 hour
+        return jsonify({"message": "Response received from database", "data": post_data}), 200
+    else:
            return abort(403)
            
 # Update - blog Post
@@ -100,6 +135,11 @@ def delete_post(post_id):
     if post is None:
         return abort(404)
 
+    # Delete the post from the cache if it exists
+    cached_post = redis_store.get(f"post:{post_id}")
+    if cached_post:
+        redis_store.delete(f"post:{post_id}")
+    
     # Delete the post
     db.session.delete(post)
     db.session.commit()
@@ -119,3 +159,6 @@ def bad_request(error):
 @app.errorhandler(404)
 def page_not_found(error):
 	return "<h1>404</h1><p>Oops, It looks like the page you're looking for cannot be found.", 404
+
+if __name__=='__main__':
+    app.run(debug=True)
