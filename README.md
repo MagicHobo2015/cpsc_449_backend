@@ -56,9 +56,3 @@ Deadline: 05/13/2024
 **Team Submissions:** Include a section in your **README** listing your team members and briefly describing each member's contributions.
 **Note:** This project is tailored to elevate your backend development proficiency, with a concentration on scalability and security to equip you for practical, real-world software development challenges.
 
-# INSTALLATION INSTRUCTIONS
-The moduels needed for this project are all in the requirements.txt file and can be installed with the command: ```pip install requirements.txt```
-
-To run:
-Each service has to be ran on its own, so start the user_service, the auth_service, and the blog_service
-then add blog.conf to your nginx sites-available and add a symlink to sites-enabled to run it.

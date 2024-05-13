@@ -46,9 +46,6 @@ def create_user():
             user_params = {}
             if all(param in request.form for param in required_params):
                 # hash incoming
-                unhashed = request.form['password']
-                print(f'Password before hashing: {unhashed}')
-                print("Hashing Password..")
                 hashed_password = generate_password_hash(request.form['password'])
                 print(f'Hashed Password: {hashed_password}')
                 # gather everything.
