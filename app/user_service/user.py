@@ -45,9 +45,12 @@ def create_user():
             # Look through params and make a dictionary if all is well.
             user_params = {}
             if all(param in request.form for param in required_params):
-                if app.debug:
-                    # this is just so that I can test
-                    hashed_password = generate_password_hash(request.form['password'])
+                # hash incoming
+                unhashed = request.form['password']
+                print(f'Password before hashing: {unhashed}')
+                print("Hashing Password..")
+                hashed_password = generate_password_hash(request.form['password'])
+                print(f'Hashed Password: {hashed_password}')
                 # gather everything.
                 user_params = {param : request.form[param] for param in required_params}
                 user_params['is_admin'] = True

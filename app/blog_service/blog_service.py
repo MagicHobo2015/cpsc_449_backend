@@ -80,6 +80,7 @@ def create_post():
 @app.route("/post/<int:post_id>", methods=["GET"])
 @jwt_required()
 def get_post(post_id):
+<<<<<<< Updated upstream
     # Check if the post is cached
     cached_post = redis_store.get(f"post:{post_id}")
     if cached_post:
@@ -101,6 +102,13 @@ def get_post(post_id):
         redis_store.set(f"post:{post_id}", post_json, ex=3600)  # expire in 1 hour
         return jsonify({"message": "Response received from database", "data": post_data}), 200
     else:
+=======
+      
+      post = BlogPost.query.get(post_id)
+      if post is not None:
+            return jsonify(post.to_json()), 200
+      else:
+>>>>>>> Stashed changes
            return abort(403)
            
 # Update - blog Post
