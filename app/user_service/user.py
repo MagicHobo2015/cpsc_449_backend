@@ -88,7 +88,7 @@ def get_user(user_id):
     user = db.get_or_404(User, user_id)
     # little security, only want to return this to itself or an admin
     if bool(token_info['is_admin']) or user.email_address == token_info['email']:
-         return user.to_json()
+         return jsonify(user.serialize())
     return jsonify(error="UnAuthorized, you can only look at your own stuff"), 401
 
 # Update - User
@@ -105,7 +105,7 @@ def update_user(user_id):
             user.first_name = request.json.get('first_name')
             user.last_name = request.json.get('last_name')
             db.session.commit()
-            return user.to_json(), 201 # success
+            return jsonify(user.serialize()), 201 # success
         else:
             return jsonify(error="Missing a parameter!"), 400
 

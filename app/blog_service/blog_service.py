@@ -60,6 +60,7 @@ def create_post():
 
 # Read - post 
 @app.route("/post/<int:post_id>", methods=["GET"])
+@jwt_required()
 def get_post(post_id):
       post = BlogPost.query.get(post_id)
       if post is not None:
@@ -69,6 +70,7 @@ def get_post(post_id):
            
 # Update - blog Post
 @app.route("/post/<int:post_id>", methods=["PUT"])
+@jwt_required()
 def update_post(post_id):
     required_params = ['title', 'content', 'author']
 
@@ -94,6 +96,7 @@ def update_post(post_id):
             
 # Delete - post post
 @app.route("/post/<int:post_id>", methods=["DELETE"])
+@jwt_required()
 def delete_post(post_id):
     # Retrieve the post to delete
     post = BlogPost.query.get(post_id)
