@@ -1,11 +1,12 @@
 from urllib import response
 from flask import Flask, jsonify, request
 import requests
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from dotenv import dotenv_values
 from flask_jwt_extended import get_jwt_identity, jwt_required, JWTManager
 from werkzeug.security import generate_password_hash
 from models import db, User
+import sys
 
 
 # grab .env vars
@@ -158,5 +159,9 @@ def internal_server_error(error):
     return jsonify(error=str(error)), 500
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+    else:
+        port = None
     # run if called.
-    app.run(port=private_stuff['PORT'], debug=True)
+    app.run(port=private_stuff['PORT'] if port is None else port , debug=True)

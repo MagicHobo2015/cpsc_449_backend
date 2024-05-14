@@ -10,7 +10,9 @@ from dotenv import dotenv_values
 from blog_models import db, BlogPost
 from flask import request, jsonify, abort
 from flask_redis import FlaskRedis
+from flask_jwt_extended import JWTManager, jwt_manager, jwt_required
 import json
+import sys
 
 
 
@@ -26,6 +28,7 @@ app.config['REDIS_URL'] = private_stuff['REDIS_URL']
 
 redis_store = FlaskRedis(app)
 db.init_app(app)
+jwt = JWTManager(app)
 
 
 
@@ -35,6 +38,7 @@ with app.app_context():
 
 # create - Blog Post, works.
 @app.route("/post", methods=["POST"])
+@jwt_required()
 def create_post():
 
     if request.method == "POST":
@@ -80,7 +84,6 @@ def create_post():
 @app.route("/post/<int:post_id>", methods=["GET"])
 @jwt_required()
 def get_post(post_id):
-<<<<<<< Updated upstream
     # Check if the post is cached
     cached_post = redis_store.get(f"post:{post_id}")
     if cached_post:
@@ -102,13 +105,11 @@ def get_post(post_id):
         redis_store.set(f"post:{post_id}", post_json, ex=3600)  # expire in 1 hour
         return jsonify({"message": "Response received from database", "data": post_data}), 200
     else:
-=======
       
       post = BlogPost.query.get(post_id)
       if post is not None:
             return jsonify(post.to_json()), 200
       else:
->>>>>>> Stashed changes
            return abort(403)
            
 # Update - blog Post
@@ -172,4 +173,9 @@ def page_not_found(error):
 	return "<h1>404</h1><p>Oops, It looks like the page you're looking for cannot be found.", 404
 
 if __name__=='__main__':
-    app.run(debug=True)
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+    else:
+        port = None
+        # run if called.
+        app.run(port=private_stuff['PORT'] if port is None else port , debug=True)

@@ -5,6 +5,7 @@ from models import db, User
 from flask_jwt_extended import create_access_token, JWTManager
 from datetime import datetime, timedelta
 from flask_redis import FlaskRedis
+import sys
 
 
 
@@ -91,4 +92,9 @@ def generateToken(email, is_admin):
 
 
 if __name__=='__main__':
-    app.run(debug=True)
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+    else:
+        port = None
+    # run if called.
+    app.run(port=private_stuff['PORT'] if port is None else port , debug=True)
